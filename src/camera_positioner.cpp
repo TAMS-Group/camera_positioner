@@ -22,13 +22,20 @@ private:
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
 
+   // name of the frames of the camera
+   std::string camera_link;
+   std::string camera_rgb_optical_frame;
+
 public:
    CameraPositioner() : initialized(false)
    {
       ros::NodeHandle node;
+      ros::NodeHandle private_node("~");
+      private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
+      private_node.param<std::string>("camera_link", camera_link, "/camera_link");
       getConstantTransforms();
       sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
-   }
+  }
 
    void getConstantTransforms(){
       while(true){
@@ -43,8 +50,8 @@ public:
 
       while(true){
          try {
-            listener.waitForTransform("/camera_rgb_optical_frame", "/camera_link", ros::Time(0), ros::Duration(5.0) );
-            listener.lookupTransform("/camera_rgb_optical_frame", "/camera_link",  ros::Time(0), optical_transform);
+            listener.waitForTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), ros::Duration(5.0) );
+            listener.lookupTransform(camera_rgb_optical_frame, camera_link,  ros::Time(0), optical_transform);
             break;
          }
          catch(...){}
@@ -71,7 +78,7 @@ public:
 
       // if we measured the camera's position successfully, publish it
       if(initialized){
-         br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", "/camera_link"));
+         br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
       }
    }
 };
