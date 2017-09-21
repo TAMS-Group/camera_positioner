@@ -61,15 +61,17 @@ public:
 
    void callback(const apriltags_ros::AprilTagDetectionArray& msg){
       // if we got a valid tag detection, update world_camera_transform
-      if(msg.detections.size() == 1 && msg.detections[0].id == 0){
-         tf::Transform tag_transform;
-         tf::poseMsgToTF(msg.detections[0].pose.pose, tag_transform);
-         world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
-         if(!initialized){
-            ROS_INFO("camera positioner is running");
-            initialized = true;
-         }
-         latest_detection_time = msg.detections[0].pose.header.stamp;
+      for (int i=0; i< msg.detections.size(); i++) {
+        if(msg.detections[i].id == 0){
+           tf::Transform tag_transform;
+           tf::poseMsgToTF(msg.detections[i].pose.pose, tag_transform);
+           world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
+           if(!initialized){
+              ROS_INFO("camera positioner is running");
+              initialized = true;
+           }
+           latest_detection_time = msg.detections[0].pose.header.stamp;
+        }
       }
 
       if(ros::Time::now() - latest_detection_time > ros::Duration(20.0)){
