@@ -21,8 +21,6 @@ private:
    tf::TransformListener listener;
    tf::TransformBroadcaster br;
 
-   ros::Publisher joint_pub;
-
    // constant transforms
    tf::StampedTransform optical_transform;
    tf::StampedTransform world_tag_transform;
@@ -56,7 +54,6 @@ public:
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
       getConstantTransforms();
       sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
-      joint_pub = node.advertise<sensor_msgs::JointState>("joint_states", 1);
    }
 
    void getConstantTransforms(){
