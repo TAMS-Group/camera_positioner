@@ -153,7 +153,7 @@ public:
       }
       // publish tag17 and real_table_top
       if (get_tag17_transform!=0){
-          br.sendTransform(tf::StampedTransform(table_tag_transform*world_tag17_transform, latest_detection_time, "/world", "/table"));
+          br.sendTransform(tf::StampedTransform(world_tag17_transform*table_tag_transform, latest_detection_time, "/world", "/table"));
       }
     }
 };
