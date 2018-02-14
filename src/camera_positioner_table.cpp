@@ -109,7 +109,7 @@ public:
           latest_detection_time = msg.detections[0].pose.header.stamp;
           get_tag0=true;
         }
-        if(msg.detections[i].id == 17){
+        if(msg.detections[i].id == 42){
           get_tag17=true;
           tag17_size=msg.detections[i].size;
 	  tf::poseMsgToTF(msg.detections[i].pose.pose, tag17_transform);
