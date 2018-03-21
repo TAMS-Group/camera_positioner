@@ -26,9 +26,9 @@ private:
    tf::StampedTransform world_tag_transform;
    tf::StampedTransform table_tag_transform;
 
-   tf::Transform world_tag17_transform;
-   tf::Transform tag17_transform;
-//   tf::Transform tag17_table_transform;
+   tf::Transform world_tabletag_transform;
+   tf::Transform tabletag_transform;
+//   tf::Transform tabletag_table_transform;
 
    // latest measured position of the camera
    tf::Transform world_camera_transform;
@@ -36,24 +36,71 @@ private:
 
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
-   int get_tag17_transform;
-   float tag17_size;
+   int get_tabletag_transform;
+   float tabletag_size;
 
    double filter_weight;
 
    // name of the frames of the camera
    std::string camera_link;
    std::string camera_rgb_optical_frame;
+   int table_tag_id_;
+   int wall_tag_id_;
+   bool update_table_tag_;
+   int stable_tabletag_threshold_;
+
+   double world_camera_origin_X;
+   double world_camera_origin_Y;
+   double world_camera_origin_Z;
+   double world_camera_rotation_X;
+   double world_camera_rotation_Y;
+   double world_camera_rotation_Z;
+   double world_camera_rotation_W;
+   double world_tabletag_origin_X;
+   double world_tabletag_origin_Y;
+   double world_tabletag_origin_Z;
+   double world_tabletag_rotation_X;
+   double world_tabletag_rotation_Y;
+   double world_tabletag_rotation_Z;
+   double world_tabletag_rotation_W;
+   int get_tabletag_transform_times;
 
 public:
-   CameraPositioner() : initialized(false),get_tag17_transform(0), filter_weight(0.15)
+   CameraPositioner() : initialized(false),get_tabletag_transform(0), filter_weight(0.15)
    {
       ros::NodeHandle node;
       ros::NodeHandle private_node("~");
       private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
-      getConstantTransforms();
-      sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
+      private_node.param<int>("table_tag_id", table_tag_id_, 42);
+      private_node.param<int>("wall_tag_id", wall_tag_id_, 0);
+      private_node.param<bool>("update_table_tag", update_table_tag_, "true");
+      private_node.param<int>("stable_tabletag_threshold", stable_tabletag_threshold_, 1000.0);
+      if (private_node.getParam("/world_camera_transform/position/x",world_camera_origin_X) &&
+          private_node.getParam("/world_camera_transform/position/y",world_camera_origin_Y) &&
+          private_node.getParam("/world_camera_transform/position/z",world_camera_origin_Z) &&
+          private_node.getParam("/world_camera_transform/quaternion/x",world_camera_rotation_X) &&
+          private_node.getParam("/world_camera_transform/quaternion/y",world_camera_rotation_Y) &&
+          private_node.getParam("/world_camera_transform/quaternion/z",world_camera_rotation_Z) &&
+          private_node.getParam("/world_camera_transform/quaternion/w",world_camera_rotation_W)){
+        world_camera_transform.setOrigin(tf::Vector3(world_camera_origin_X,world_camera_origin_Y,world_camera_origin_Z));
+        world_camera_transform.setRotation(tf::Quaternion(world_camera_rotation_X,world_camera_rotation_Y,world_camera_rotation_Z,world_camera_rotation_W));
+      }
+
+     if (private_node.getParam("/world_tabletag_transform/position/x",world_tabletag_origin_X) &&
+         private_node.getParam("/world_tabletag_transform/position/y",world_tabletag_origin_Y)&&
+         private_node.getParam("/world_tabletag_transform/position/z",world_tabletag_origin_Z)&&
+         private_node.getParam("/world_tabletag_transform/quaternion/x",world_tabletag_rotation_X)&&
+         private_node.getParam("/world_tabletag_transform/quaternion/y",world_tabletag_rotation_Y)&&
+         private_node.getParam("/world_tabletag_transform/quaternion/z",world_tabletag_rotation_Z)&&
+         private_node.getParam("/world_tabletag_transform/quaternion/w",world_tabletag_rotation_W)){
+        world_tabletag_transform.setOrigin(tf::Vector3(world_tabletag_origin_X,world_tabletag_origin_Y,world_tabletag_origin_Z));
+        world_tabletag_transform.setRotation(tf::Quaternion(world_tabletag_rotation_X,world_tabletag_rotation_Y,world_tabletag_rotation_Z,world_tabletag_rotation_W));
+			}
+     if (private_node.getParam("/get_tabletag_transform_times",get_tabletag_transform_times))
+      get_tabletag_transform=get_tabletag_transform;
+    getConstantTransforms();
+    sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
    }
 
    void getConstantTransforms(){
@@ -89,19 +136,24 @@ public:
    }
 
    void callback(const apriltags_ros::AprilTagDetectionArray& msg){
+		 ros::NodeHandle nh("~");
       //check whether tag0 is detected, update world_camera_transform
       bool get_tag0=false;
-      int get_tag17=false;
-      for (int i=0; i< msg.detections.size(); i++) {
-        if(msg.detections[i].id == 0){
+      int get_tabletag=false;
+      for (int i=0; i< msg.detections.size(); i++)
+			{
+        if(msg.detections[i].id == wall_tag_id_)
+				{
           tf::Transform tag_transform;
           tf::poseMsgToTF(msg.detections[i].pose.pose, tag_transform);
-          if(!initialized){
+          if(!initialized)
+					{
              ROS_INFO("camera positioner is running");
              initialized = true;
              world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
           }
-          else {
+          else
+					{
              tf::Transform world_camera_transform_new;
              interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
              world_camera_transform= world_camera_transform_new;
@@ -109,51 +161,72 @@ public:
           latest_detection_time = msg.detections[0].pose.header.stamp;
           get_tag0=true;
         }
-        if(msg.detections[i].id == 42){
-          get_tag17=true;
-          tag17_size=msg.detections[i].size;
-	  tf::poseMsgToTF(msg.detections[i].pose.pose, tag17_transform);
+        if(msg.detections[i].id == table_tag_id_)
+				{
+          get_tabletag=true;
+          tabletag_size=msg.detections[i].size;
+         tf::poseMsgToTF(msg.detections[i].pose.pose, tabletag_transform);
         }
      }
 
-      // get tag17 position based on tag0 at the beginning
-      // if get_tag0, update world_camera_transform and world_tag17_transform based on tag0
-      // if only get_tag17 , update world_camera_transform based on tag17
-      if(get_tag17){
-           latest_detection_time = msg.detections[0].pose.header.stamp;
-           if(get_tag17_transform==0){
+      // get tabletag position based on tag0 at the beginning
+      // if get_tag0, update world_camera_transform and world_tabletag_transform based on tag0
+      // if only get_tabletag , update world_camera_transform based on tabletag
+      if(get_tabletag){
+         latest_detection_time = msg.detections[0].pose.header.stamp;
+         if(get_tabletag_transform==0)
+				 {
               if(get_tag0){
-                  world_tag17_transform=world_camera_transform * optical_transform.inverse() *tag17_transform;
-                  get_tag17_transform++;
+                  world_tabletag_transform=world_camera_transform * optical_transform.inverse() *tabletag_transform;
+                  get_tabletag_transform++;
               }
 	           else
                   ROS_ERROR("Please adjust camera to see two Apriltags");
+         }
+         else
+           if(get_tag0)
+           {
+             if ( update_table_tag_ || get_tabletag_transform < stable_tabletag_threshold_)
+             {
+              tf::Transform world_tabletag_transform_new;
+              interpolateTransforms(world_tabletag_transform, world_camera_transform * optical_transform.inverse() *tabletag_transform, filter_weight, world_tabletag_transform_new);
+              world_tabletag_transform = world_tabletag_transform_new;
+              get_tabletag_transform++;
+             }
           }
           else
-              if(get_tag0){
-		tf::Transform world_tag17_transform_new;
-                interpolateTransforms(world_tag17_transform, world_camera_transform * optical_transform.inverse() *tag17_transform, filter_weight, world_tag17_transform_new);
-                world_tag17_transform = world_tag17_transform_new;
-                get_tag17_transform++;
-              }
-              else {
-                tf::Transform world_camera_transform_new;
-                interpolateTransforms(world_camera_transform, world_tag17_transform * tag17_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
-                world_camera_transform = world_camera_transform_new;
-              }
+          {
+            tf::Transform world_camera_transform_new;
+            interpolateTransforms(world_camera_transform, world_tabletag_transform * tabletag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
+            world_camera_transform = world_camera_transform_new;
+          }
       }
 
       if(ros::Time::now() - latest_detection_time > ros::Duration(25.0)){
          ROS_WARN_THROTTLE(5, "Didn't detect apriltag for camera position update in 20 seconds. The camera might have moved in the meanwhile.");
       }
-
       // if we measured the camera's position successfully, publish it
       if(initialized){
          br.sendTransform(tf::StampedTransform(world_camera_transform, latest_detection_time, "/world", camera_link));
+         nh.setParam("/world_camera_transform/position/x",world_camera_transform.getOrigin().getX ());
+         nh.setParam("/world_camera_transform/position/y",world_camera_transform.getOrigin().getY ());
+         nh.setParam("/world_camera_transform/position/z",world_camera_transform.getOrigin().getZ ());
+         nh.setParam("/world_camera_transform/quaternion/x",world_camera_transform.getRotation().getX ());
+         nh.setParam("/world_camera_transform/quaternion/y",world_camera_transform.getRotation().getY ());
+         nh.setParam("/world_camera_transform/quaternion/z",world_camera_transform.getRotation().getZ ());
+         nh.setParam("/world_camera_transform/quaternion/w",world_camera_transform.getRotation().getW ());
       }
-      // publish tag17 and real_table_top
-      if (get_tag17_transform!=0){
-          br.sendTransform(tf::StampedTransform(world_tag17_transform*table_tag_transform, latest_detection_time, "/world", "/table"));
+      // publish tabletag and real_table_top
+      if (get_tabletag_transform!=0){
+          br.sendTransform(tf::StampedTransform(world_tabletag_transform*table_tag_transform, latest_detection_time, "/world", "/table"));
+          nh.setParam("/get_tabletag_transform_times",get_tabletag_transform);
+          nh.setParam("/world_tabletag_transform/position/x",world_tabletag_transform.getOrigin().getX ());
+          nh.setParam("/world_tabletag_transform/position/y",world_tabletag_transform.getOrigin().getY ());
+          nh.setParam("/world_tabletag_transform/position/z",world_tabletag_transform.getOrigin().getZ ());
+          nh.setParam("/world_tabletag_transform/quaternion/x",world_tabletag_transform.getRotation().getX ());
+          nh.setParam("/world_tabletag_transform/quaternion/y",world_tabletag_transform.getRotation().getY ());
+          nh.setParam("/world_tabletag_transform/quaternion/z",world_tabletag_transform.getRotation().getZ ());
+          nh.setParam("/world_tabletag_transform/quaternion/w",world_tabletag_transform.getRotation().getW ());
       }
     }
 };
