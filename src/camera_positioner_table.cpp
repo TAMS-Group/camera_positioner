@@ -24,7 +24,8 @@ private:
    // constant transforms
    tf::StampedTransform optical_transform;
    tf::StampedTransform world_tag_transform;
-   tf::StampedTransform table_tag_transform;
+   tf::StampedTransform tag_table_transform;
+	 tf::StampedTransform table_tabletop_transform;
 
    tf::Transform world_tabletag_transform;
    tf::Transform tabletag_transform;
@@ -33,6 +34,7 @@ private:
    // latest measured position of the camera
    tf::Transform world_camera_transform;
    ros::Time latest_detection_time;
+   tf::Transform  camera_tabletop_transform;
 
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
@@ -49,13 +51,6 @@ private:
    bool update_table_tag_;
    int stable_tabletag_threshold_;
 
-   double world_camera_origin_X;
-   double world_camera_origin_Y;
-   double world_camera_origin_Z;
-   double world_camera_rotation_X;
-   double world_camera_rotation_Y;
-   double world_camera_rotation_Z;
-   double world_camera_rotation_W;
    double world_tabletag_origin_X;
    double world_tabletag_origin_Y;
    double world_tabletag_origin_Z;
@@ -76,16 +71,6 @@ public:
       private_node.param<int>("wall_tag_id", wall_tag_id_, 0);
       private_node.param<bool>("update_table_tag", update_table_tag_, "true");
       private_node.param<int>("stable_tabletag_threshold", stable_tabletag_threshold_, 1000.0);
-      if (private_node.getParam("/world_camera_transform/position/x",world_camera_origin_X) &&
-          private_node.getParam("/world_camera_transform/position/y",world_camera_origin_Y) &&
-          private_node.getParam("/world_camera_transform/position/z",world_camera_origin_Z) &&
-          private_node.getParam("/world_camera_transform/quaternion/x",world_camera_rotation_X) &&
-          private_node.getParam("/world_camera_transform/quaternion/y",world_camera_rotation_Y) &&
-          private_node.getParam("/world_camera_transform/quaternion/z",world_camera_rotation_Z) &&
-          private_node.getParam("/world_camera_transform/quaternion/w",world_camera_rotation_W)){
-        world_camera_transform.setOrigin(tf::Vector3(world_camera_origin_X,world_camera_origin_Y,world_camera_origin_Z));
-        world_camera_transform.setRotation(tf::Quaternion(world_camera_rotation_X,world_camera_rotation_Y,world_camera_rotation_Z,world_camera_rotation_W));
-      }
 
      if (private_node.getParam("/world_tabletag_transform/position/x",world_tabletag_origin_X) &&
          private_node.getParam("/world_tabletag_transform/position/y",world_tabletag_origin_Y)&&
@@ -111,7 +96,7 @@ public:
             break;
          }
          catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for world->april_tag_ur5 transform");
+         ROS_WARN_THROTTLE(10, "Waiting for april_tag_ur5->world transform");
       }
 
       while(true){
@@ -121,17 +106,27 @@ public:
             break;
          }
          catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for camera_rgb_optical_frame->camera_link transform");
+         ROS_WARN_THROTTLE(10, "Waiting for camera_link-> camera_rgb_optical_frame transform");
       }
 
       while(true){
          try {
             listener.waitForTransform("/table_tag", "/table", ros::Time(0), ros::Duration(5.0) );
-            listener.lookupTransform("/table_tag", "/table",  ros::Time(0), table_tag_transform);
+            listener.lookupTransform("/table_tag", "/table",  ros::Time(0), tag_table_transform);
             break;
          }
          catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for table_tag->table transform");
+         ROS_WARN_THROTTLE(10, "Waiting for table->table_tag transform");
+      }
+
+			while(true){
+         try {
+            listener.waitForTransform("/table", "/table_top",  ros::Time(0), ros::Duration(5.0) );
+            listener.lookupTransform("/table", "/table_top", ros::Time(0), table_tabletop_transform);
+            break;
+         }
+         catch(...){}
+         ROS_WARN_THROTTLE(10, "Waiting for table->table_top transform");
       }
    }
 
@@ -209,25 +204,27 @@ public:
       // if we measured the camera's position successfully, publish it
       if(initialized){
          br.sendTransform(tf::StampedTransform(world_camera_transform, latest_detection_time, "/world", camera_link));
-         nh.setParam("/world_camera_transform/position/x",world_camera_transform.getOrigin().getX ());
-         nh.setParam("/world_camera_transform/position/y",world_camera_transform.getOrigin().getY ());
-         nh.setParam("/world_camera_transform/position/z",world_camera_transform.getOrigin().getZ ());
-         nh.setParam("/world_camera_transform/quaternion/x",world_camera_transform.getRotation().getX ());
-         nh.setParam("/world_camera_transform/quaternion/y",world_camera_transform.getRotation().getY ());
-         nh.setParam("/world_camera_transform/quaternion/z",world_camera_transform.getRotation().getZ ());
-         nh.setParam("/world_camera_transform/quaternion/w",world_camera_transform.getRotation().getW ());
       }
       // publish tabletag and real_table_top
       if (get_tabletag_transform!=0){
-          br.sendTransform(tf::StampedTransform(world_tabletag_transform*table_tag_transform, latest_detection_time, "/world", "/table"));
-          nh.setParam("/get_tabletag_transform_times",get_tabletag_transform);
-          nh.setParam("/world_tabletag_transform/position/x",world_tabletag_transform.getOrigin().getX ());
-          nh.setParam("/world_tabletag_transform/position/y",world_tabletag_transform.getOrigin().getY ());
-          nh.setParam("/world_tabletag_transform/position/z",world_tabletag_transform.getOrigin().getZ ());
-          nh.setParam("/world_tabletag_transform/quaternion/x",world_tabletag_transform.getRotation().getX ());
-          nh.setParam("/world_tabletag_transform/quaternion/y",world_tabletag_transform.getRotation().getY ());
-          nh.setParam("/world_tabletag_transform/quaternion/z",world_tabletag_transform.getRotation().getZ ());
-          nh.setParam("/world_tabletag_transform/quaternion/w",world_tabletag_transform.getRotation().getW ());
+          br.sendTransform(tf::StampedTransform(world_tabletag_transform*tag_table_transform, latest_detection_time, "/world", "/table"));
+					camera_tabletop_transform= optical_transform * world_camera_transform.inverse() * world_tabletag_transform*tag_table_transform * table_tabletop_transform;
+					nh.setParam("get_tabletag_transform_times",get_tabletag_transform);
+          nh.setParam("world_tabletag_transform/position/x",world_tabletag_transform.getOrigin().getX ());
+          nh.setParam("world_tabletag_transform/position/y",world_tabletag_transform.getOrigin().getY ());
+          nh.setParam("world_tabletag_transform/position/z",world_tabletag_transform.getOrigin().getZ ());
+          nh.setParam("world_tabletag_transform/quaternion/x",world_tabletag_transform.getRotation().getX ());
+          nh.setParam("world_tabletag_transform/quaternion/y",world_tabletag_transform.getRotation().getY ());
+          nh.setParam("world_tabletag_transform/quaternion/z",world_tabletag_transform.getRotation().getZ ());
+          nh.setParam("world_tabletag_transform/quaternion/w",world_tabletag_transform.getRotation().getW ());
+
+          nh.setParam("camera_tabletop_transform/position/x",camera_tabletop_transform.getOrigin().getX ());
+          nh.setParam("camera_tabletop_transform/position/y",camera_tabletop_transform.getOrigin().getY ());
+          nh.setParam("camera_tabletop_transform/position/z",camera_tabletop_transform.getOrigin().getZ ());
+          nh.setParam("camera_tabletop_transform/quaternion/x",camera_tabletop_transform.getRotation().getX ());
+          nh.setParam("camera_tabletop_transform/quaternion/y",camera_tabletop_transform.getRotation().getY ());
+          nh.setParam("camera_tabletop_transform/quaternion/z",camera_tabletop_transform.getRotation().getZ ());
+          nh.setParam("camera_tabletop_transform/quaternion/w",camera_tabletop_transform.getRotation().getW ());
       }
     }
 };
