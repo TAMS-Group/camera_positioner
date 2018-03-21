@@ -136,24 +136,24 @@ public:
    }
 
    void callback(const apriltags_ros::AprilTagDetectionArray& msg){
-		 ros::NodeHandle nh("~");
+      ros::NodeHandle nh("~");
       //check whether tag0 is detected, update world_camera_transform
       bool get_tag0=false;
       int get_tabletag=false;
       for (int i=0; i< msg.detections.size(); i++)
-			{
+      {
         if(msg.detections[i].id == wall_tag_id_)
-				{
+	{
           tf::Transform tag_transform;
           tf::poseMsgToTF(msg.detections[i].pose.pose, tag_transform);
           if(!initialized)
-					{
+          {
              ROS_INFO("camera positioner is running");
              initialized = true;
              world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
           }
           else
-					{
+	  {
              tf::Transform world_camera_transform_new;
              interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
              world_camera_transform= world_camera_transform_new;
@@ -162,7 +162,7 @@ public:
           get_tag0=true;
         }
         if(msg.detections[i].id == table_tag_id_)
-				{
+	{
           get_tabletag=true;
           tabletag_size=msg.detections[i].size;
          tf::poseMsgToTF(msg.detections[i].pose.pose, tabletag_transform);
@@ -175,23 +175,24 @@ public:
       if(get_tabletag){
          latest_detection_time = msg.detections[0].pose.header.stamp;
          if(get_tabletag_transform==0)
-				 {
-              if(get_tag0){
-                  world_tabletag_transform=world_camera_transform * optical_transform.inverse() *tabletag_transform;
-                  get_tabletag_transform++;
-              }
-	           else
-                  ROS_ERROR("Please adjust camera to see two Apriltags");
+	 {
+            if(get_tag0)
+            {
+               world_tabletag_transform=world_camera_transform * optical_transform.inverse() *tabletag_transform;
+               get_tabletag_transform++;
+             }
+	    else
+               ROS_ERROR("Please adjust camera to see two Apriltags");
          }
          else
            if(get_tag0)
            {
              if ( update_table_tag_ || get_tabletag_transform < stable_tabletag_threshold_)
              {
-              tf::Transform world_tabletag_transform_new;
-              interpolateTransforms(world_tabletag_transform, world_camera_transform * optical_transform.inverse() *tabletag_transform, filter_weight, world_tabletag_transform_new);
-              world_tabletag_transform = world_tabletag_transform_new;
-              get_tabletag_transform++;
+               tf::Transform world_tabletag_transform_new;
+               interpolateTransforms(world_tabletag_transform, world_camera_transform * optical_transform.inverse() *tabletag_transform, filter_weight, world_tabletag_transform_new);
+               world_tabletag_transform = world_tabletag_transform_new;
+               get_tabletag_transform++;
              }
           }
           else
