@@ -65,6 +65,12 @@ private:
    double world_tabletag_rotation_W;
    int get_tabletag_transform_times;
 
+	 int table_tag_id_;
+	 int wall_tag_id_;
+	 bool update_table_tag_;
+	 double begin;
+	 float stable_time_threshold_;
+
 public:
    CameraPositioner() : initialized(false),get_tabletag_transform(0), filter_weight(0.15)
    {
