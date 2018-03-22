@@ -25,7 +25,6 @@ private:
    tf::StampedTransform optical_transform;
    tf::StampedTransform world_tag_transform;
    tf::StampedTransform tag_table_transform;
-	 tf::StampedTransform table_tabletop_transform;
 
    tf::Transform world_tabletag_transform;
    tf::Transform tabletag_transform;
@@ -34,7 +33,6 @@ private:
    // latest measured position of the camera
    tf::Transform world_camera_transform;
    ros::Time latest_detection_time;
-   tf::Transform  camera_tabletop_transform;
 
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
@@ -118,16 +116,6 @@ public:
          catch(...){}
          ROS_WARN_THROTTLE(10, "Waiting for table->table_tag transform");
       }
-
-			while(true){
-         try {
-            listener.waitForTransform("/table", "/table_top",  ros::Time(0), ros::Duration(5.0) );
-            listener.lookupTransform("/table", "/table_top", ros::Time(0), table_tabletop_transform);
-            break;
-         }
-         catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for table->table_top transform");
-      }
    }
 
    void callback(const apriltags_ros::AprilTagDetectionArray& msg){
@@ -208,8 +196,7 @@ public:
       // publish tabletag and real_table_top
       if (get_tabletag_transform!=0){
           br.sendTransform(tf::StampedTransform(world_tabletag_transform*tag_table_transform, latest_detection_time, "/world", "/table"));
-					camera_tabletop_transform= optical_transform * world_camera_transform.inverse() * world_tabletag_transform*tag_table_transform * table_tabletop_transform;
-					nh.setParam("get_tabletag_transform_times",get_tabletag_transform);
+
           nh.setParam("world_tabletag_transform/position/x",world_tabletag_transform.getOrigin().getX ());
           nh.setParam("world_tabletag_transform/position/y",world_tabletag_transform.getOrigin().getY ());
           nh.setParam("world_tabletag_transform/position/z",world_tabletag_transform.getOrigin().getZ ());
@@ -217,14 +204,6 @@ public:
           nh.setParam("world_tabletag_transform/quaternion/y",world_tabletag_transform.getRotation().getY ());
           nh.setParam("world_tabletag_transform/quaternion/z",world_tabletag_transform.getRotation().getZ ());
           nh.setParam("world_tabletag_transform/quaternion/w",world_tabletag_transform.getRotation().getW ());
-
-          nh.setParam("camera_tabletop_transform/position/x",camera_tabletop_transform.getOrigin().getX ());
-          nh.setParam("camera_tabletop_transform/position/y",camera_tabletop_transform.getOrigin().getY ());
-          nh.setParam("camera_tabletop_transform/position/z",camera_tabletop_transform.getOrigin().getZ ());
-          nh.setParam("camera_tabletop_transform/quaternion/x",camera_tabletop_transform.getRotation().getX ());
-          nh.setParam("camera_tabletop_transform/quaternion/y",camera_tabletop_transform.getRotation().getY ());
-          nh.setParam("camera_tabletop_transform/quaternion/z",camera_tabletop_transform.getRotation().getZ ());
-          nh.setParam("camera_tabletop_transform/quaternion/w",camera_tabletop_transform.getRotation().getW ());
       }
     }
 };
