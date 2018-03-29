@@ -47,7 +47,7 @@ private:
    int table_tag_id_;
    int wall_tag_id_;
    bool update_table_tag_;
-   int stable_tabletag_threshold_;
+   int tabletag_stable_threshold_;
 
    double world_tabletag_origin_X;
    double world_tabletag_origin_Y;
@@ -67,26 +67,31 @@ public:
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
       private_node.param<int>("table_tag_id", table_tag_id_, 42);
       private_node.param<int>("wall_tag_id", wall_tag_id_, 0);
-      private_node.param<bool>("update_table_tag", update_table_tag_, "true");
-      private_node.param<int>("stable_tabletag_threshold", stable_tabletag_threshold_, 1000.0);
+      private_node.param<bool>("update_table_tag", update_table_tag_, "false");
+      private_node.param<int>("tabletag_stable_threshold", tabletag_stable_threshold_, 100);
 
-     if (private_node.getParam("/world_tabletag_transform/position/x",world_tabletag_origin_X) &&
-         private_node.getParam("/world_tabletag_transform/position/y",world_tabletag_origin_Y)&&
-         private_node.getParam("/world_tabletag_transform/position/z",world_tabletag_origin_Z)&&
-         private_node.getParam("/world_tabletag_transform/quaternion/x",world_tabletag_rotation_X)&&
-         private_node.getParam("/world_tabletag_transform/quaternion/y",world_tabletag_rotation_Y)&&
-         private_node.getParam("/world_tabletag_transform/quaternion/z",world_tabletag_rotation_Z)&&
-         private_node.getParam("/world_tabletag_transform/quaternion/w",world_tabletag_rotation_W)){
+     if (private_node.getParam("world_tabletag_transform/position/x",world_tabletag_origin_X) &&
+         private_node.getParam("world_tabletag_transform/position/y",world_tabletag_origin_Y)&&
+         private_node.getParam("world_tabletag_transform/position/z",world_tabletag_origin_Z)&&
+         private_node.getParam("world_tabletag_transform/quaternion/x",world_tabletag_rotation_X)&&
+         private_node.getParam("world_tabletag_transform/quaternion/y",world_tabletag_rotation_Y)&&
+         private_node.getParam("world_tabletag_transform/quaternion/z",world_tabletag_rotation_Z)&&
+         private_node.getParam("world_tabletag_transform/quaternion/w",world_tabletag_rotation_W))
+      {
         world_tabletag_transform.setOrigin(tf::Vector3(world_tabletag_origin_X,world_tabletag_origin_Y,world_tabletag_origin_Z));
         world_tabletag_transform.setRotation(tf::Quaternion(world_tabletag_rotation_X,world_tabletag_rotation_Y,world_tabletag_rotation_Z,world_tabletag_rotation_W));
-			}
-     if (private_node.getParam("/get_tabletag_transform_times",get_tabletag_transform_times))
-      get_tabletag_transform=get_tabletag_transform;
-    getConstantTransforms();
-    sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
-   }
+      }
+     else 
+       ROS_ERROR("don't get the transform");
+     if (private_node.getParam("get_tabletag_transform_times",get_tabletag_transform_times))
+        get_tabletag_transform=get_tabletag_transform_times;
+     else 
+       ROS_ERROR("don't get the times");
+     getConstantTransforms();
+     sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
+  }
 
-   void getConstantTransforms(){
+  void getConstantTransforms(){
       while(true){
          try {
             listener.waitForTransform("/world", "/april_tag_ur5", ros::Time(0), ros::Duration(5.0) );
@@ -170,7 +175,7 @@ public:
          else
            if(get_tag0)
            {
-             if ( update_table_tag_ || get_tabletag_transform < stable_tabletag_threshold_)
+             if ( update_table_tag_ || get_tabletag_transform < tabletag_stable_threshold_)
              {
                tf::Transform world_tabletag_transform_new;
                interpolateTransforms(world_tabletag_transform, world_camera_transform * optical_transform.inverse() *tabletag_transform, filter_weight, world_tabletag_transform_new);
@@ -181,6 +186,7 @@ public:
           else
           {
             tf::Transform world_camera_transform_new;
+            //ROS_ERROR_STREAM("world_tabletag_transform transform is " << world_tabletag_transform.getOrigin().getX ());
             interpolateTransforms(world_camera_transform, world_tabletag_transform * tabletag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
             world_camera_transform = world_camera_transform_new;
           }
@@ -190,7 +196,7 @@ public:
          ROS_WARN_THROTTLE(5, "Didn't detect apriltag for camera position update in 20 seconds. The camera might have moved in the meanwhile.");
       }
       // if we measured the camera's position successfully, publish it
-      if(initialized){
+      if(initialized || get_tabletag_transform >= tabletag_stable_threshold_){
          br.sendTransform(tf::StampedTransform(world_camera_transform, latest_detection_time, "/world", camera_link));
       }
       // publish tabletag and real_table_top
@@ -204,6 +210,7 @@ public:
           nh.setParam("world_tabletag_transform/quaternion/y",world_tabletag_transform.getRotation().getY ());
           nh.setParam("world_tabletag_transform/quaternion/z",world_tabletag_transform.getRotation().getZ ());
           nh.setParam("world_tabletag_transform/quaternion/w",world_tabletag_transform.getRotation().getW ());
+          nh.setParam("get_tabletag_transform_times",get_tabletag_transform);
       }
     }
 };
