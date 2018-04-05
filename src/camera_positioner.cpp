@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <apriltags_ros/AprilTagDetectionArray.h>
+#include <apriltags2_ros/AprilTagDetectionArray.h>
 
 class CameraPositioner {
 private:
@@ -59,12 +59,12 @@ public:
       }
    }
 
-   void callback(const apriltags_ros::AprilTagDetectionArray& msg){
+   void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
       // if we got a valid tag detection, update world_camera_transform
       for (int i=0; i< msg.detections.size(); i++) {
-        if(msg.detections[i].id == 0){
+        if(msg.detections[i].id[0] == 0){
            tf::Transform tag_transform;
-           tf::poseMsgToTF(msg.detections[i].pose.pose, tag_transform);
+           tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
            world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
            if(!initialized){
               ROS_INFO("camera positioner is running");
