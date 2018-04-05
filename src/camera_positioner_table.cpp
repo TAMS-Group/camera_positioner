@@ -130,7 +130,7 @@ public:
       int get_tabletag=false;
       for (int i=0; i< msg.detections.size(); i++)
       {
-        if(msg.detections[i].id[0] == wall_tag_id_){
+        if(msg.detections[i].id[0] == wall_tag_id_)
 	{
           tf::Transform tag_transform;
           tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
