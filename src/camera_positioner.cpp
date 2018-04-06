@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <apriltags_ros/AprilTagDetectionArray.h>
+#include <apriltags2_ros/AprilTagDetectionArray.h>
 
 class CameraPositioner {
 private:
@@ -18,6 +18,7 @@ private:
    // latest measured position of the camera
    tf::Transform world_camera_transform;
    ros::Time latest_detection_time;
+   tf::Transform last_tag_transform;
 
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
@@ -59,17 +60,20 @@ public:
       }
    }
 
-   void callback(const apriltags_ros::AprilTagDetectionArray& msg){
+   void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
       // if we got a valid tag detection, update world_camera_transform
       for (int i=0; i< msg.detections.size(); i++) {
-        if(msg.detections[i].id == 0){
+        if(msg.detections[i].id.size() > 0 && msg.detections[i].id[0] == 0){
            tf::Transform tag_transform;
-           tf::poseMsgToTF(msg.detections[i].pose.pose, tag_transform);
-           world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
+           tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
            if(!initialized){
               ROS_INFO("camera positioner is running");
               initialized = true;
+           } else {
+              interpolateTransforms(last_tag_transform, tag_transform, 0.05, tag_transform);
            }
+           last_tag_transform = tag_transform;
+           world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
            latest_detection_time = msg.detections[0].pose.header.stamp;
         }
       }
@@ -82,6 +86,11 @@ public:
       if(initialized){
          br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
       }
+   }
+
+   void interpolateTransforms(const tf::Transform& t1, const tf::Transform& t2, double fraction, tf::Transform& t_out){
+      t_out.setOrigin( t1.getOrigin()*(1-fraction) + t2.getOrigin()*fraction );
+      t_out.setRotation( t1.getRotation().slerp(t2.getRotation(), fraction) );
    }
 };
 
