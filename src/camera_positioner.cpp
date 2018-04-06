@@ -20,6 +20,9 @@ private:
    ros::Time latest_detection_time;
    tf::Transform last_tag_transform;
 
+   // Fraction used for transform interpolation
+   float filter_weight;
+
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
 
@@ -32,6 +35,7 @@ public:
    {
       ros::NodeHandle node;
       ros::NodeHandle private_node("~");
+      private_node.param<float>("transform_filter_weight", filter_weight, 0.05);
       private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
       getConstantTransforms();
@@ -70,7 +74,7 @@ public:
               ROS_INFO("camera positioner is running");
               initialized = true;
            } else {
-              interpolateTransforms(last_tag_transform, tag_transform, 0.05, tag_transform);
+              interpolateTransforms(last_tag_transform, tag_transform, filter_weight, tag_transform);
            }
            last_tag_transform = tag_transform;
            world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
