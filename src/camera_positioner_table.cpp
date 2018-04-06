@@ -130,32 +130,34 @@ public:
       int get_tabletag=false;
       for (int i=0; i< msg.detections.size(); i++)
       {
-        if(msg.detections[i].id[0] == wall_tag_id_)
-	{
-          tf::Transform tag_transform;
-          tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
-          if(!initialized)
-          {
-             ROS_INFO("camera positioner is running");
-             initialized = true;
-             world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
-          }
-          else
-	  {
-             tf::Transform world_camera_transform_new;
-             interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
-             world_camera_transform= world_camera_transform_new;
-          }
-          latest_detection_time = msg.detections[0].pose.header.stamp;
-          get_tag0=true;
-        }
-        if(msg.detections[i].id[0] == table_tag_id_)
-	{
-          get_tabletag=true;
-          tabletag_size=msg.detections[i].size[0];
-          tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tabletag_transform);
-        }
-     }
+         if(msg.detections[i].id.size() > 0) {
+            if(msg.detections[i].id[0] == wall_tag_id_)
+            {
+               tf::Transform tag_transform;
+               tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
+               if(!initialized)
+               {
+                  ROS_INFO("camera positioner is running");
+                  initialized = true;
+                  world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
+               }
+               else
+               {
+                  tf::Transform world_camera_transform_new;
+                  interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
+                  world_camera_transform= world_camera_transform_new;
+               }
+               latest_detection_time = msg.detections[0].pose.header.stamp;
+               get_tag0=true;
+            }
+            if(msg.detections[i].id[0] == table_tag_id_ && msg.detections[i].size.size() > 0)
+            {
+               get_tabletag=true;
+               tabletag_size=msg.detections[i].size[0];
+               tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tabletag_transform);
+            }
+         }
+      }
 
       // get tabletag position based on tag0 at the beginning
       // if get_tag0, update world_camera_transform and world_tabletag_transform based on tag0

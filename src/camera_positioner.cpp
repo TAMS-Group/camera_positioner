@@ -63,7 +63,7 @@ public:
    void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
       // if we got a valid tag detection, update world_camera_transform
       for (int i=0; i< msg.detections.size(); i++) {
-        if(msg.detections[i].id[0] == 0){
+        if(msg.detections[i].id.size() > 0 && msg.detections[i].id[0] == 0){
            tf::Transform tag_transform;
            tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
            if(!initialized){
