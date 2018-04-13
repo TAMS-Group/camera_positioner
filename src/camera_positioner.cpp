@@ -39,7 +39,7 @@ public:
    {
       ros::NodeHandle node;
       ros::NodeHandle private_node("~");
-      private_node.param<float>("transform_filter_weight", filter_weight, 0.05);
+      private_node.param<float>("transform_filter_weight", filter_weight, 0.25);
       private_node.getParam("bundle_tags", bundle_tags);
       private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
