@@ -65,24 +65,28 @@ public:
    }
 
    void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
-      // if we got a valid tag detection, update world_camera_transform
-      for (int i=0; i< msg.detections.size(); i++) {
-        if(msg.detections[i].id.size() > 0 && msg.detections[i].id[0] == 0){
+     // if we got a valid tag detection, update world_camera_transform
+     for (int i=0; i< msg.detections.size(); i++) {
+       if(msg.detections[i].id.size() > 0){
+         if(msg.detections[i].id[0] == 0){
            tf::Transform tag_transform;
            tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
            if(!initialized){
-              ROS_INFO("camera positioner is running");
-              initialized = true;
+             ROS_INFO("camera positioner is running");
+             initialized = true;
            } else {
-              interpolateTransforms(last_tag_transform, tag_transform, filter_weight, tag_transform);
+             interpolateTransforms(last_tag_transform, tag_transform, filter_weight, tag_transform);
            }
            last_tag_transform = tag_transform;
            world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
            latest_detection_time = msg.detections[0].pose.header.stamp;
-        }
-      }
+         }
+       } else {
+         ROS_WARN_THROTTLE(5, "Found empty AprilTagDetection message!");
+       }
+     }
 
-      if(ros::Time::now() - latest_detection_time > ros::Duration(20.0)){
+     if(ros::Time::now() - latest_detection_time > ros::Duration(20.0)){
          ROS_WARN_THROTTLE(5, "Didn't detect apriltag for camera position update in 20 seconds. The camera might have moved in the meanwhile.");
       }
 

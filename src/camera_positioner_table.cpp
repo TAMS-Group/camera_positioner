@@ -156,6 +156,8 @@ public:
                tabletag_size=msg.detections[i].size[0];
                tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tabletag_transform);
             }
+         } else {
+           ROS_WARN_THROTTLE(5, "Found empty AprilTagDetection message!");
          }
       }
 
