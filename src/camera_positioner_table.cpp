@@ -37,7 +37,6 @@ private:
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
    int get_tabletag_transform;
-   float tabletag_size;
 
    double filter_weight;
 
@@ -150,10 +149,9 @@ public:
                latest_detection_time = msg.detections[0].pose.header.stamp;
                get_tag0=true;
             }
-            if(msg.detections[i].id[0] == table_tag_id_ && msg.detections[i].size.size() > 0)
+            if(msg.detections[i].id[0] == table_tag_id_)
             {
                get_tabletag=true;
-               tabletag_size=msg.detections[i].size[0];
                tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tabletag_transform);
             }
          } else {
