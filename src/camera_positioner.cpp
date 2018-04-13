@@ -75,19 +75,22 @@ public:
    void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
      // if we got a valid tag detection, update world_camera_transform
      for (int i=0; i< msg.detections.size(); i++) {
-       int a[] = {128, 154, 162, 164};
-       if (std::find(bundle_tags.begin(), bundle_tags.end(), msg.detections[i].id[0]) != bundle_tags.end()) {
-         tf::Transform bundle_transform;
-         tf::poseMsgToTF(msg.detections[i].pose.pose.pose, bundle_transform);
-         if(!initialized){
-           ROS_INFO("camera positioner is running");
-           initialized = true;
-         } else {
-           interpolateTransforms(last_bundle_transform, bundle_transform, filter_weight, bundle_transform);
+       if(msg.detections[i].id.size() > 0) {
+         if (std::find(bundle_tags.begin(), bundle_tags.end(), msg.detections[i].id[0]) != bundle_tags.end()) {
+           tf::Transform bundle_transform;
+           tf::poseMsgToTF(msg.detections[i].pose.pose.pose, bundle_transform);
+           if(!initialized){
+             ROS_INFO("camera positioner is running");
+             initialized = true;
+           } else {
+             interpolateTransforms(last_bundle_transform, bundle_transform, filter_weight, bundle_transform);
+           }
+           last_bundle_transform = bundle_transform;
+           world_camera_transform= world_bundle_transform * bundle_transform.inverse() * optical_transform;
+           latest_detection_time = msg.detections[i].pose.header.stamp;
          }
-         last_bundle_transform = bundle_transform;
-         world_camera_transform= world_bundle_transform * bundle_transform.inverse() * optical_transform;
-         latest_detection_time = msg.detections[i].pose.header.stamp;
+       } else {
+         ROS_WARN_THROTTLE(5, "Found empty AprilTagDetection message!");
        }
      }
 
