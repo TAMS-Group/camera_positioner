@@ -40,7 +40,10 @@ public:
       ros::NodeHandle node;
       ros::NodeHandle private_node("~");
       private_node.param<float>("transform_filter_weight", filter_weight, 0.25);
-      private_node.getParam("bundle_tags", bundle_tags);
+      if(!private_node.getParam("bundle_tags", bundle_tags) || bundle_tags.size() == 0) {
+	ROS_ERROR("CameraPositioner was launched without any defined apriltag bundle ids! Please check your launch file for the rosparam bundle_tags.");
+	return;
+      }
       private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
       getConstantTransforms();
