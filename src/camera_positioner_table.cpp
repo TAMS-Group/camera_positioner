@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <apriltags_ros/AprilTagDetectionArray.h>
+#include <apriltags2_ros/AprilTagDetectionArray.h>
 
 #include <sensor_msgs/JointState.h>
 
@@ -37,7 +37,6 @@ private:
    // for successful initialization the apriltag has to be detected _once_
    bool initialized;
    int get_tabletag_transform;
-   float tabletag_size;
 
    double filter_weight;
 
@@ -123,39 +122,42 @@ public:
       }
    }
 
-   void callback(const apriltags_ros::AprilTagDetectionArray& msg){
+   void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
       ros::NodeHandle nh("~");
       //check whether tag0 is detected, update world_camera_transform
       bool get_tag0=false;
       int get_tabletag=false;
       for (int i=0; i< msg.detections.size(); i++)
       {
-        if(msg.detections[i].id == wall_tag_id_)
-	{
-          tf::Transform tag_transform;
-          tf::poseMsgToTF(msg.detections[i].pose.pose, tag_transform);
-          if(!initialized)
-          {
-             ROS_INFO("camera positioner is running");
-             initialized = true;
-             world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
-          }
-          else
-	  {
-             tf::Transform world_camera_transform_new;
-             interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
-             world_camera_transform= world_camera_transform_new;
-          }
-          latest_detection_time = msg.detections[0].pose.header.stamp;
-          get_tag0=true;
-        }
-        if(msg.detections[i].id == table_tag_id_)
-	{
-          get_tabletag=true;
-          tabletag_size=msg.detections[i].size;
-         tf::poseMsgToTF(msg.detections[i].pose.pose, tabletag_transform);
-        }
-     }
+         if(msg.detections[i].id.size() > 0) {
+            if(msg.detections[i].id[0] == wall_tag_id_)
+            {
+               tf::Transform tag_transform;
+               tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
+               if(!initialized)
+               {
+                  ROS_INFO("camera positioner is running");
+                  initialized = true;
+                  world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
+               }
+               else
+               {
+                  tf::Transform world_camera_transform_new;
+                  interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
+                  world_camera_transform= world_camera_transform_new;
+               }
+               latest_detection_time = msg.detections[0].pose.header.stamp;
+               get_tag0=true;
+            }
+            if(msg.detections[i].id[0] == table_tag_id_)
+            {
+               get_tabletag=true;
+               tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tabletag_transform);
+            }
+         } else {
+           ROS_WARN_THROTTLE(5, "Found empty AprilTagDetection message!");
+         }
+      }
 
       // get tabletag position based on tag0 at the beginning
       // if get_tag0, update world_camera_transform and world_tabletag_transform based on tag0

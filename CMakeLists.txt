@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(camera_positioner)
 
 find_package(catkin REQUIRED COMPONENTS
-  apriltags_ros
+  apriltags2_ros
   roscpp
   tf
 )
