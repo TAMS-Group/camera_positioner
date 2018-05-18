@@ -23,7 +23,7 @@ private:
 
    // constant transforms
    tf::StampedTransform optical_transform;
-   tf::StampedTransform world_tag_transform;
+   tf::StampedTransform world_wall_bundle_transform;
    tf::StampedTransform tag_table_transform;
 
    tf::Transform world_tabletag_transform;
@@ -44,7 +44,7 @@ private:
    std::string camera_link;
    std::string camera_rgb_optical_frame;
    int table_tag_id_;
-   int wall_tag_id_;
+   std::vector<int> bundle_tags;
    bool update_table_tag_;
    int tabletag_stable_threshold_;
 
@@ -65,7 +65,10 @@ public:
       private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
       private_node.param<int>("table_tag_id", table_tag_id_, 42);
-      private_node.param<int>("wall_tag_id", wall_tag_id_, 0);
+      if(!private_node.getParam("bundle_tags", bundle_tags) || bundle_tags.size() == 0) {
+	    ROS_ERROR("CameraPositioner was launched without any defined apriltag bundle ids! Please check your launch file for the rosparam bundle_tags.");
+	    return;
+      }
       private_node.param<bool>("update_table_tag", update_table_tag_, "false");
       private_node.param<int>("tabletag_stable_threshold", tabletag_stable_threshold_, 100);
 
@@ -93,12 +96,12 @@ public:
   void getConstantTransforms(){
       while(true){
          try {
-            listener.waitForTransform("/world", "/april_tag_ur5", ros::Time(0), ros::Duration(5.0) );
-            listener.lookupTransform("/world", "/april_tag_ur5", ros::Time(0), world_tag_transform);
+            listener.waitForTransform("/world", "/ur5_mount_plate", ros::Time(0), ros::Duration(5.0) );
+            listener.lookupTransform("/world", "/ur5_mount_plate", ros::Time(0), world_wall_bundle_transform);
             break;
          }
          catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for april_tag_ur5->world transform");
+         ROS_WARN_THROTTLE(10, "Waiting for world->ur5_mount_plate transform");
       }
 
       while(true){
@@ -124,30 +127,30 @@ public:
 
    void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
       ros::NodeHandle nh("~");
-      //check whether tag0 is detected, update world_camera_transform
-      bool get_tag0=false;
+      //check whether bundle is detected, update world_camera_transform
+      bool found_wall_bundle=false;
       int get_tabletag=false;
       for (int i=0; i< msg.detections.size(); i++)
       {
          if(msg.detections[i].id.size() > 0) {
-            if(msg.detections[i].id[0] == wall_tag_id_)
+            if(std::find(bundle_tags.begin(), bundle_tags.end(), msg.detections[i].id[0]) != bundle_tags.end())
             {
-               tf::Transform tag_transform;
-               tf::poseMsgToTF(msg.detections[i].pose.pose.pose, tag_transform);
+               tf::Transform wall_bundle_transform;
+               tf::poseMsgToTF(msg.detections[i].pose.pose.pose, wall_bundle_transform);
                if(!initialized)
                {
                   ROS_INFO("camera positioner is running");
                   initialized = true;
-                  world_camera_transform= world_tag_transform * tag_transform.inverse() * optical_transform;
+                  world_camera_transform= world_wall_bundle_transform * wall_bundle_transform.inverse() * optical_transform;
                }
                else
                {
                   tf::Transform world_camera_transform_new;
-                  interpolateTransforms(world_camera_transform, world_tag_transform * tag_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
+                  interpolateTransforms(world_camera_transform, world_wall_bundle_transform * wall_bundle_transform.inverse() * optical_transform, filter_weight, world_camera_transform_new);
                   world_camera_transform= world_camera_transform_new;
                }
                latest_detection_time = msg.detections[0].pose.header.stamp;
-               get_tag0=true;
+               found_wall_bundle=true;
             }
             if(msg.detections[i].id[0] == table_tag_id_)
             {
@@ -160,13 +163,13 @@ public:
       }
 
       // get tabletag position based on tag0 at the beginning
-      // if get_tag0, update world_camera_transform and world_tabletag_transform based on tag0
+      // if found_wall_bundle, update world_camera_transform and world_tabletag_transform based on tag0
       // if only get_tabletag , update world_camera_transform based on tabletag
       if(get_tabletag){
          latest_detection_time = msg.detections[0].pose.header.stamp;
          if(get_tabletag_transform==0)
 	 {
-            if(get_tag0)
+            if(found_wall_bundle)
             {
                world_tabletag_transform=world_camera_transform * optical_transform.inverse() *tabletag_transform;
                get_tabletag_transform++;
@@ -175,7 +178,7 @@ public:
                ROS_ERROR("Please adjust camera to see two Apriltags");
          }
          else
-           if(get_tag0)
+           if(found_wall_bundle)
            {
              if ( update_table_tag_ || get_tabletag_transform < tabletag_stable_threshold_)
              {
