@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <apriltags2_ros/AprilTagDetectionArray.h>
+#include <apriltag_ros/AprilTagDetectionArray.h>
 
 #include <sensor_msgs/JointState.h>
 
@@ -125,7 +125,7 @@ public:
       }
    }
 
-   void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
+   void callback(const apriltag_ros::AprilTagDetectionArray& msg){
       ros::NodeHandle nh("~");
       //check whether bundle is detected, update world_camera_transform
       bool found_wall_bundle=false;

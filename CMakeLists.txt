@@ -4,7 +4,7 @@ add_compile_options(-std=c++11)
 
 
 find_package(catkin REQUIRED COMPONENTS
-  apriltags2_ros
+  apriltag_ros
   roscpp
   tf
 )

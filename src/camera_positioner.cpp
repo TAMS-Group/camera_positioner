@@ -3,7 +3,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <apriltags2_ros/AprilTagDetectionArray.h>
+#include <apriltag_ros/AprilTagDetectionArray.h>
 
 class CameraPositioner {
 private:
@@ -72,7 +72,7 @@ public:
       }
    }
 
-   void callback(const apriltags2_ros::AprilTagDetectionArray& msg){
+   void callback(const apriltag_ros::AprilTagDetectionArray& msg){
      // if we got a valid tag detection, update world_camera_transform
      for (int i=0; i< msg.detections.size(); i++) {
        if(msg.detections[i].id.size() > 0) {
