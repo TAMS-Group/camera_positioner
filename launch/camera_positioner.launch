@@ -1,4 +1,7 @@
 <?xml version="1.0"?>
 <launch>
-  <node pkg="camera_positioner" type="camera_positioner" name="camera_positioner"/>
+    <arg name="get_tf_only_on_start" default="true"/>
+    <node pkg="camera_positioner" type="camera_positioner" name="camera_positioner" output="screen">
+        <param name="get_tf_only_on_start" value="$(arg get_tf_only_on_start)"/>
+    </node>
 </launch>
