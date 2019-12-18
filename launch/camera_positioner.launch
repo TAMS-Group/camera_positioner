@@ -3,5 +3,8 @@
     <arg name="get_tf_only_on_start" default="true"/>
     <node pkg="camera_positioner" type="camera_positioner" name="camera_positioner" output="screen">
         <param name="get_tf_only_on_start" value="$(arg get_tf_only_on_start)"/>
+        <rosparam param="bundle_tags">[128, 154, 162, 164]</rosparam>
+        <param name="camera_rgb_optical_frame" value="kinect2_rgb_optical_frame"/>
+        <param name="camera_link" value="kinect2_link"/>
     </node>
 </launch>
