@@ -132,7 +132,8 @@ class CameraPositioner
         }
     }
 
-    void interpolateTransforms(const tf::Transform& t1, const tf::Transform& t2, double fraction, tf::Transform& t_out){
+    void interpolateTransforms(const tf::Transform& t1, const tf::Transform& t2, double fraction, tf::Transform& t_out)
+    {
         t_out.setOrigin( t1.getOrigin()*(1-fraction) + t2.getOrigin()*fraction );
         t_out.setRotation( t1.getRotation().slerp(t2.getRotation(), fraction) );
     }
