@@ -32,14 +32,14 @@ class CameraPositioner
     bool get_tf_only_on_start = false;
 
     // for successful initialization the apriltag has to be detected _once_
-    std::string initialized;
+    std::string camera_state;
 
     // name of the frames of the camera
     std::string camera_link;
     std::string camera_rgb_optical_frame;
 
     public:
-    CameraPositioner() : initialized("start")
+    CameraPositioner() : camera_state("start")
     {
         ros::NodeHandle node;
         ros::NodeHandle private_node("~");
@@ -86,7 +86,7 @@ class CameraPositioner
     void callback(const apriltag_ros::AprilTagDetectionArray& msg)
     {
         // if we got a valid tag detection, update world_camera_transform
-        if (initialized=="normal_mode" || initialized=="start")
+        if (camera_state=="normal_mode" || camera_state=="start")
         {
             for (int i=0; i< msg.detections.size(); i++)
             {
@@ -96,13 +96,13 @@ class CameraPositioner
                     {
                         tf::Transform bundle_transform;
                         tf::poseMsgToTF(msg.detections[i].pose.pose.pose, bundle_transform);
-                        if (initialized=="start")
+                        if (camera_state=="start")
                         {
                             ROS_INFO("camera positioner is running");
                             if(get_tf_only_on_start)
-                                    initialized = "fixed_mode";
+                                    camera_state = "fixed_mode";
                                 else
-                                    initialized = "moraml_mode";
+                                    camera_state = "normal_mode";
                         }
                         else
                         {
@@ -126,7 +126,7 @@ class CameraPositioner
         }
 
         // if we measured the camera's position successfully, publish it
-        if(initialized != "start")
+        if(camera_state != "start")
         {
             br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
         }
