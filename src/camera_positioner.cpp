@@ -55,6 +55,11 @@ class CameraPositioner
         private_node.param<std::string>("camera_link", camera_link, "/camera_link");
         getConstantTransforms();
         sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
+        if(camera_state == "fixed_mode")
+        {
+            std::thread publish_static_tf(&CameraPositioner::publish_tf_thread, this);
+            publish_static_tf.join();
+        }
     }
 
     void getConstantTransforms()
@@ -101,9 +106,13 @@ class CameraPositioner
                         {
                             ROS_INFO("camera positioner is running");
                             if(get_tf_only_on_start)
-                                    camera_state = "fixed_mode";
-                                else
-                                    camera_state = "normal_mode";
+                            {
+                                camera_state = "fixed_mode";
+                            }
+                            else
+                            {
+                                camera_state = "normal_mode";
+                            }
                         }
                         else
                         {
@@ -134,8 +143,6 @@ class CameraPositioner
         else if(camera_state == "fixed_mode")
         {
             sub.shutdown();
-            std::thread publish_static_tf(&CameraPositioner::publish_tf_thread, this);
-            publish_static_tf.join();
         }
     }
     void publish_tf_thread()
