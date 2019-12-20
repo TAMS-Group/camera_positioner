@@ -4,6 +4,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
+#include<thread>
 
 class CameraPositioner
 {
@@ -126,10 +127,20 @@ class CameraPositioner
         }
 
         // if we measured the camera's position successfully, publish it
-        if(camera_state != "start")
+        if(camera_state == "normal_mode")
         {
             br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
         }
+        else if(camera_state == "fixed_mode")
+        {
+            sub.shutdown();
+            std::thread publish_static_tf(&CameraPositioner::publish_tf_thread, this);
+            publish_static_tf.join();
+        }
+    }
+    void publish_tf_thread()
+    {
+        br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
     }
 
     void interpolateTransforms(const tf::Transform& t1, const tf::Transform& t2, double fraction, tf::Transform& t_out)
