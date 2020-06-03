@@ -81,6 +81,8 @@ public:
      for (int i=0; i< msg.detections.size(); i++) {
        if(msg.detections[i].id.size() > 0) {
          if (std::find(bundle_tags.begin(), bundle_tags.end(), msg.detections[i].id[0]) != bundle_tags.end()) {
+           if (msg.detections[i].pose.header.frame_id != camera_link)
+             continue;
            tf::Transform bundle_transform;
            tf::poseMsgToTF(msg.detections[i].pose.pose.pose, bundle_transform);
            if(!initialized){
