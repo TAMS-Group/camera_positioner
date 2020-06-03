@@ -33,6 +33,8 @@ private:
    // name of the frames of the camera
    std::string camera_link;
    std::string camera_rgb_optical_frame;
+   std::string world_frame;
+   std::string shared_frame;
 
 public:
    CameraPositioner() : initialized(false)
@@ -46,29 +48,31 @@ public:
       }
       private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
       private_node.param<std::string>("camera_link", camera_link, "/camera_link");
+      private_node.param<std::string>("world_frame", world_frame, "/world");
+      private_node.param<std::string>("shared_frame", shared_frame, "/ur5_mount_plate");
       getConstantTransforms();
       sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
   }
 
    void getConstantTransforms(){
-      while(true){
+      while(ros::ok()){
          try {
-            listener.waitForTransform("/world", "/ur5_mount_plate", ros::Time(0), ros::Duration(5.0) );
-            listener.lookupTransform("/world", "/ur5_mount_plate", ros::Time(0), world_bundle_transform);
+            listener.waitForTransform(world_frame, shared_frame, ros::Time(0), ros::Duration(5.0) );
+            listener.lookupTransform(world_frame, shared_frame, ros::Time(0), world_bundle_transform);
             break;
          }
          catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for world->ur5_mount_plate transform");
+         ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame << " transform");
       }
 
-      while(true){
+      while(ros::ok()){
          try {
             listener.waitForTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), ros::Duration(5.0) );
             listener.lookupTransform(camera_rgb_optical_frame, camera_link,  ros::Time(0), optical_transform);
             break;
          }
          catch(...){}
-         ROS_WARN_THROTTLE(10, "Waiting for camera_rgb_optical_frame->camera_link transform");
+         ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << camera_rgb_optical_frame << "->" << camera_link << " transform");
       }
    }
 
@@ -86,7 +90,7 @@ public:
              interpolateTransforms(last_bundle_transform, bundle_transform, filter_weight, bundle_transform);
            }
            last_bundle_transform = bundle_transform;
-           world_camera_transform= world_bundle_transform * bundle_transform.inverse() * optical_transform;
+           world_camera_transform = world_bundle_transform * bundle_transform.inverse() * optical_transform;
            latest_detection_time = msg.detections[i].pose.header.stamp;
          }
        } else {
