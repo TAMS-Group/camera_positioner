@@ -1,11 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-  	<node pkg="camera_positioner" type="camera_positioner" name="camera_positioner">
-  		<rosparam param="bundle_tags">[21]</rosparam>
-  		<param name="camera_rgb_optical_frame" value="kinect2_rgb_optical_frame"/>
-  		<param name="camera_link" value="kinect2_link"/>
-  		<param name="shared_frame" value="table_top"/>
-  		<param name="world_frame" value="world"/>
+    <!-- this is only a example launch file, you might need to modify the params here for your setup-->
+    <node pkg="camera_positioner" type="camera_positioner" name="camera_positioner">
+        <rosparam param="bundle_tags">[21]</rosparam>
+        <param name="camera_rgb_optical_frame" value="kinect2_rgb_optical_frame"/>
+        <param name="camera_link" value="kinect2_link"/>
+        <param name="shared_frame" value="table_top"/>
+        <param name="world_frame" value="world"/>
         <param name="static_camera" value="true"/>
-  	</node>
+    </node>
 </launch>
