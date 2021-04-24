@@ -77,7 +77,7 @@ public:
             }
             catch (...) {}
             ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame <<
-            " transform. Please check the frame_id did not begin with '/'");
+            " transform. Please make sure the frame_id did not begin with '/'");
         }
 
         while (ros::ok()) {
@@ -88,7 +88,7 @@ public:
             }
             catch (...) {}
             ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << camera_rgb_optical_frame << "->"
-            << camera_link << " transform. Please check the frame_id did not begin with '/'");
+            << camera_link << " transform. Please make sure the frame_id did not begin with '/'");
         }
     }
 
@@ -125,7 +125,8 @@ public:
                 transform_count += 1;
                 // run 100 loops and then shut down this code
                 if (transform_count > 100) {
-                    ROS_INFO("Camera positioner is going to shutdown as a static transform has been published.");
+                    ROS_WARN("Camera positioner is going to shutdown as a static transform has been published.");
+                    sub.shutdown();  // unsubscribe the tag_detection node to let it not detect tag anymore.
                     exit(0);
                 }
             }
