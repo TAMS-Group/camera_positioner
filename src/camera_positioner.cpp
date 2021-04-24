@@ -1,26 +1,33 @@
-#include <algorithm>
-#include <iterator>
 #include <ros/ros.h>
-#include <tf/transform_listener.h>
-#include <tf/transform_broadcaster.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 class CameraPositioner {
 private:
     ros::Subscriber sub;
 
     // TF communication channels
-    tf::TransformListener listener;
-    tf::TransformBroadcaster br;
+    tf2_ros::TransformBroadcaster br;
+    tf2_ros::Buffer tfBuffer1;
+    tf2_ros::Buffer tfBuffer2;
+    tf2_ros::TransformListener tfListener1{tfBuffer1};
+    tf2_ros::TransformListener tfListener2{tfBuffer2};
 
     // constant transforms
-    tf::StampedTransform optical_transform;
-    tf::StampedTransform world_bundle_transform;
-
+    geometry_msgs::TransformStamped optical_transform_geo;
+    geometry_msgs::TransformStamped world_bundle_transform_geo;
+    tf2::Transform optical_transform;
+    tf2::Transform world_bundle_transform;
     // latest measured position of the camera
-    tf::Transform world_camera_transform;
+    tf2::Transform world_camera_transform;
+    tf2::Transform last_bundle_transform;
     ros::Time latest_detection_time;
-    tf::Transform last_bundle_transform;
 
     std::vector<int> bundle_tags;
 
@@ -35,6 +42,7 @@ private:
     std::string camera_rgb_optical_frame;
     std::string world_frame;
     std::string shared_frame;
+    geometry_msgs::TransformStamped transformStamped;
 
 public:
     CameraPositioner() : initialized(false) {
@@ -47,10 +55,10 @@ public:
             return;
         }
         private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame,
-                                        "/camera_rgb_optical_frame");
-        private_node.param<std::string>("camera_link", camera_link, "/camera_link");
-        private_node.param<std::string>("world_frame", world_frame, "/world");
-        private_node.param<std::string>("shared_frame", shared_frame, "/ur5_mount_plate");
+                                        "camera_rgb_optical_frame");
+        private_node.param<std::string>("camera_link", camera_link, "camera_link");
+        private_node.param<std::string>("world_frame", world_frame, "world");
+        private_node.param<std::string>("shared_frame", shared_frame, "ur5_mount_plate");
         getConstantTransforms();
         sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
     }
@@ -58,23 +66,24 @@ public:
     void getConstantTransforms() {
         while (ros::ok()) {
             try {
-                listener.waitForTransform(world_frame, shared_frame, ros::Time(0), ros::Duration(5.0));
-                listener.lookupTransform(world_frame, shared_frame, ros::Time(0), world_bundle_transform);
+                world_bundle_transform_geo = tfBuffer1.lookupTransform(world_frame, shared_frame, ros::Time(0));
+                tf2::fromMsg(world_bundle_transform_geo.transform, world_bundle_transform);
                 break;
             }
             catch (...) {}
-            ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame << " transform");
+            ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame <<
+            " transform. Please check the frame_id did not begin with '/'");
         }
 
         while (ros::ok()) {
             try {
-                listener.waitForTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), ros::Duration(5.0));
-                listener.lookupTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), optical_transform);
+                optical_transform_geo = tfBuffer2.lookupTransform(camera_rgb_optical_frame, camera_link, ros::Time(0));
+                tf2::fromMsg(optical_transform_geo.transform, optical_transform);
                 break;
             }
             catch (...) {}
-            ROS_WARN_STREAM_THROTTLE(10,
-                                     "Waiting for " << camera_rgb_optical_frame << "->" << camera_link << " transform");
+            ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << camera_rgb_optical_frame << "->"
+            << camera_link << " transform. Please check the frame_id did not begin with '/'");
         }
     }
 
@@ -83,8 +92,8 @@ public:
         for (int i = 0; i < msg.detections.size(); i++) {
             if (msg.detections[i].id.size() > 0) {
                 if (std::find(bundle_tags.begin(), bundle_tags.end(), msg.detections[i].id[0]) != bundle_tags.end()) {
-                    tf::Transform bundle_transform;
-                    tf::poseMsgToTF(msg.detections[i].pose.pose.pose, bundle_transform);
+                    tf2::Transform bundle_transform;
+                    tf2::fromMsg(msg.detections[i].pose.pose.pose, bundle_transform);
                     if (!initialized) {
                         ROS_INFO("camera positioner is running");
                         initialized = true;
@@ -107,11 +116,16 @@ public:
 
         // if we measured the camera's position successfully, publish it
         if (initialized) {
-            br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
+            transformStamped.header.frame_id = world_frame;
+            transformStamped.child_frame_id = camera_link;
+            transformStamped.header.stamp = ros::Time::now();
+            transformStamped.transform = tf2::toMsg(world_camera_transform);
+            br.sendTransform(transformStamped);
         }
     }
 
-    void interpolateTransforms(const tf::Transform &t1, const tf::Transform &t2, double fraction, tf::Transform &t_out) {
+    void interpolateTransforms(const tf2::Transform &t1, const tf2::Transform &t2, double fraction,
+                               tf2::Transform &t_out) {
         t_out.setOrigin(t1.getOrigin() * (1 - fraction) + t2.getOrigin() * fraction);
         t_out.setRotation(t1.getRotation().slerp(t2.getRotation(), fraction));
     }
