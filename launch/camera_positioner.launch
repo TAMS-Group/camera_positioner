@@ -6,5 +6,6 @@
   		<param name="camera_link" value="kinect2_link"/>
   		<param name="shared_frame" value="table_top"/>
   		<param name="world_frame" value="world"/>
+        <param name="static_camera" value="true"/>
   	</node>
 </launch>

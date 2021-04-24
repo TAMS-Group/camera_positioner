@@ -5,6 +5,7 @@
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -13,7 +14,8 @@ private:
     ros::Subscriber sub;
 
     // TF communication channels
-    tf2_ros::TransformBroadcaster br;
+    tf2_ros::TransformBroadcaster dynamic_broadcaster;
+    tf2_ros::StaticTransformBroadcaster static_broadcaster;
     tf2_ros::Buffer tfBuffer1;
     tf2_ros::Buffer tfBuffer2;
     tf2_ros::TransformListener tfListener1{tfBuffer1};
@@ -42,6 +44,8 @@ private:
     std::string camera_rgb_optical_frame;
     std::string world_frame;
     std::string shared_frame;
+    bool static_camera;
+    int transform_count=0;
     geometry_msgs::TransformStamped transformStamped;
 
 public:
@@ -59,6 +63,7 @@ public:
         private_node.param<std::string>("camera_link", camera_link, "camera_link");
         private_node.param<std::string>("world_frame", world_frame, "world");
         private_node.param<std::string>("shared_frame", shared_frame, "ur5_mount_plate");
+        private_node.param<bool>("static_camera", static_camera, false);
         getConstantTransforms();
         sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
     }
@@ -95,7 +100,7 @@ public:
                     tf2::Transform bundle_transform;
                     tf2::fromMsg(msg.detections[i].pose.pose.pose, bundle_transform);
                     if (!initialized) {
-                        ROS_INFO("camera positioner is running");
+                        ROS_INFO("Camera positioner is running!");
                         initialized = true;
                     } else {
                         interpolateTransforms(last_bundle_transform, bundle_transform, filter_weight, bundle_transform);
@@ -116,11 +121,25 @@ public:
 
         // if we measured the camera's position successfully, publish it
         if (initialized) {
+            if (static_camera) {
+                transform_count += 1;
+                // run 100 loops and then shut down this code
+                if (transform_count > 100) {
+                    ROS_INFO("Camera positioner is going to shutdown as a static transform has been published.");
+                    exit(0);
+                }
+            }
             transformStamped.header.frame_id = world_frame;
             transformStamped.child_frame_id = camera_link;
             transformStamped.header.stamp = ros::Time::now();
             transformStamped.transform = tf2::toMsg(world_camera_transform);
-            br.sendTransform(transformStamped);
+            if (static_camera) {
+                static_broadcaster.sendTransform(transformStamped);
+            }
+            else {
+                dynamic_broadcaster.sendTransform(transformStamped);
+            }
+
         }
     }
 
