@@ -1,7 +1,6 @@
 # Camera Positioner
 
-
-This package provides a continuous tf transform of a (movable) camera based on Apriltags detected in the image.
+This package provides a continuous tf2 transform of a (movable / static) camera based on Apriltags detected in the image.
 
 ---
 
