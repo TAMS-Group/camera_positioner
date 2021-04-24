@@ -6,7 +6,7 @@
 #include <apriltag_ros/AprilTagDetectionArray.h>
 
 class CameraPositioner {
-    private:
+private:
     ros::Subscriber sub;
 
     // TF communication channels
@@ -36,17 +36,18 @@ class CameraPositioner {
     std::string world_frame;
     std::string shared_frame;
 
-    public:
-    CameraPositioner() : initialized(false)
-    {
+public:
+    CameraPositioner() : initialized(false) {
         ros::NodeHandle node;
         ros::NodeHandle private_node("~");
         private_node.param<float>("transform_filter_weight", filter_weight, 0.25);
-        if(!private_node.getParam("bundle_tags", bundle_tags) || bundle_tags.size() == 0) {
-            ROS_ERROR("CameraPositioner was launched without any defined apriltag bundle ids! Please check your launch file for the rosparam bundle_tags.");
+        if (!private_node.getParam("bundle_tags", bundle_tags) || bundle_tags.size() == 0) {
+            ROS_ERROR("CameraPositioner was launched without any defined apriltag bundle ids!"
+                      " Please check your launch file for the rosparam bundle_tags.");
             return;
         }
-        private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame, "/camera_rgb_optical_frame");
+        private_node.param<std::string>("camera_rgb_optical_frame", camera_rgb_optical_frame,
+                                        "/camera_rgb_optical_frame");
         private_node.param<std::string>("camera_link", camera_link, "/camera_link");
         private_node.param<std::string>("world_frame", world_frame, "/world");
         private_node.param<std::string>("shared_frame", shared_frame, "/ur5_mount_plate");
@@ -54,69 +55,69 @@ class CameraPositioner {
         sub = node.subscribe("tag_detections", 1, &CameraPositioner::callback, this);
     }
 
-    void getConstantTransforms(){
-        while(ros::ok()){
+    void getConstantTransforms() {
+        while (ros::ok()) {
             try {
-                listener.waitForTransform(world_frame, shared_frame, ros::Time(0), ros::Duration(5.0) );
+                listener.waitForTransform(world_frame, shared_frame, ros::Time(0), ros::Duration(5.0));
                 listener.lookupTransform(world_frame, shared_frame, ros::Time(0), world_bundle_transform);
                 break;
             }
-            catch(...){}
+            catch (...) {}
             ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame << " transform");
         }
 
-        while(ros::ok()){
+        while (ros::ok()) {
             try {
-                listener.waitForTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), ros::Duration(5.0) );
-                listener.lookupTransform(camera_rgb_optical_frame, camera_link,  ros::Time(0), optical_transform);
+                listener.waitForTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), ros::Duration(5.0));
+                listener.lookupTransform(camera_rgb_optical_frame, camera_link, ros::Time(0), optical_transform);
                 break;
             }
-            catch(...){}
-            ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << camera_rgb_optical_frame << "->" << camera_link << " transform");
+            catch (...) {}
+            ROS_WARN_STREAM_THROTTLE(10,
+                                     "Waiting for " << camera_rgb_optical_frame << "->" << camera_link << " transform");
         }
     }
 
-    void callback(const apriltag_ros::AprilTagDetectionArray& msg){
+    void callback(const apriltag_ros::AprilTagDetectionArray &msg) {
         // if we got a valid tag detection, update world_camera_transform
-        for (int i=0; i< msg.detections.size(); i++) {
-            if(msg.detections[i].id.size() > 0) {
+        for (int i = 0; i < msg.detections.size(); i++) {
+            if (msg.detections[i].id.size() > 0) {
                 if (std::find(bundle_tags.begin(), bundle_tags.end(), msg.detections[i].id[0]) != bundle_tags.end()) {
                     tf::Transform bundle_transform;
                     tf::poseMsgToTF(msg.detections[i].pose.pose.pose, bundle_transform);
-                    if(!initialized){
+                    if (!initialized) {
                         ROS_INFO("camera positioner is running");
                         initialized = true;
-                    }
-                    else{
+                    } else {
                         interpolateTransforms(last_bundle_transform, bundle_transform, filter_weight, bundle_transform);
                     }
                     last_bundle_transform = bundle_transform;
                     world_camera_transform = world_bundle_transform * bundle_transform.inverse() * optical_transform;
                     latest_detection_time = msg.detections[i].pose.header.stamp;
                 }
-            }
-            else{
+            } else {
                 ROS_WARN_THROTTLE(5, "Found empty AprilTagDetection message!");
             }
         }
 
-        if(ros::Time::now() - latest_detection_time > ros::Duration(20.0)){
-            ROS_WARN_THROTTLE(5, "Didn't detect apriltag bundle for camera position update in 20 seconds. The camera might have moved in the meanwhile.");
+        if (ros::Time::now() - latest_detection_time > ros::Duration(20.0)) {
+            ROS_WARN_THROTTLE(5, "Didn't detect apriltag bundle for camera position update in 20 seconds."
+                                 " The camera might have moved in the meanwhile.");
         }
 
         // if we measured the camera's position successfully, publish it
-        if(initialized){
+        if (initialized) {
             br.sendTransform(tf::StampedTransform(world_camera_transform, ros::Time::now(), "/world", camera_link));
         }
     }
 
-    void interpolateTransforms(const tf::Transform& t1, const tf::Transform& t2, double fraction, tf::Transform& t_out){
-        t_out.setOrigin( t1.getOrigin()*(1-fraction) + t2.getOrigin()*fraction );
-        t_out.setRotation( t1.getRotation().slerp(t2.getRotation(), fraction) );
+    void interpolateTransforms(const tf::Transform &t1, const tf::Transform &t2, double fraction, tf::Transform &t_out) {
+        t_out.setOrigin(t1.getOrigin() * (1 - fraction) + t2.getOrigin() * fraction);
+        t_out.setRotation(t1.getRotation().slerp(t2.getRotation(), fraction));
     }
 };
 
-int main(int argc, char** argv){
+int main(int argc, char **argv) {
     ros::init(argc, argv, "camera_position_node");
     CameraPositioner cam_pos;
     ros::spin();
