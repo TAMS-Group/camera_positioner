@@ -121,7 +121,12 @@ public:
 
         // if we measured the camera's position successfully, publish it
         if (initialized) {
+            transformStamped.header.frame_id = world_frame;
+            transformStamped.child_frame_id = camera_link;
+            transformStamped.header.stamp = ros::Time::now();
+            transformStamped.transform = tf2::toMsg(world_camera_transform);
             if (static_camera) {
+                static_broadcaster.sendTransform(transformStamped);
                 transform_count += 1;
                 // run 100 loops and then shut down this code
                 if (transform_count > 100) {
@@ -129,13 +134,6 @@ public:
                     sub.shutdown();  // unsubscribe the tag_detection node to let it not detect tag anymore.
                     exit(0);
                 }
-            }
-            transformStamped.header.frame_id = world_frame;
-            transformStamped.child_frame_id = camera_link;
-            transformStamped.header.stamp = ros::Time::now();
-            transformStamped.transform = tf2::toMsg(world_camera_transform);
-            if (static_camera) {
-                static_broadcaster.sendTransform(transformStamped);
             }
             else {
                 dynamic_broadcaster.sendTransform(transformStamped);
