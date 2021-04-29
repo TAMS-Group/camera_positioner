@@ -130,9 +130,8 @@ public:
                 transform_count += 1;
                 // run 100 loops and then shut down this code
                 if (transform_count > 100) {
-                    ROS_WARN("Camera positioner is going to shutdown as a static transform has been published.");
+                    ROS_WARN("Camera positioner is going to unsubscribe tag_detection msg as a static transform has been published.");
                     sub.shutdown();  // unsubscribe the tag_detection node to let it not detect tag anymore.
-                    exit(0);
                 }
             }
             else {
