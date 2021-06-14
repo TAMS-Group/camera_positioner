@@ -76,7 +76,7 @@ public:
                 break;
             }
             catch (...) {}
-            ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame <<
+            ROS_INFO_STREAM_THROTTLE(10, "Waiting for " << world_frame << "->" << shared_frame <<
             " transform. Please make sure the frame_id did not begin with '/'");
         }
 
