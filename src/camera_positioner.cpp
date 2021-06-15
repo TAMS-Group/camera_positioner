@@ -87,7 +87,7 @@ public:
                 break;
             }
             catch (...) {}
-            ROS_WARN_STREAM_THROTTLE(10, "Waiting for " << camera_rgb_optical_frame << "->"
+            ROS_INFO_STREAM_THROTTLE(10, "Waiting for " << camera_rgb_optical_frame << "->"
             << camera_link << " transform. Please make sure the frame_id did not begin with '/'");
         }
     }
